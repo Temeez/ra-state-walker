@@ -2,3 +2,5 @@
 Game? Nah. Example? Probably.
 
 Made with [Rust](https://www.rust-lang.org) & [Amethyst](https://github.com/amethyst/amethyst) as an learning experience.
+
+Change states with SPACE key. Move with WASD.
