@@ -9,7 +9,7 @@ use std::time::Duration;
 use amethyst::core::cgmath::{Point3, Transform as CgTransform, Vector3};
 use amethyst::core::transform::{GlobalTransform, Transform, TransformBundle};
 use amethyst::assets::{AssetStorage, Loader};
-use amethyst::ecs::prelude::{Entity};
+use amethyst::ecs::prelude::Entity;
 use amethyst::prelude::*;
 use amethyst::input::{is_close_requested, is_key_down, InputBundle};
 use amethyst::ui::{UiBundle, DrawUi, Anchor, TtfFormat, UiText, UiTransform};
@@ -27,13 +27,15 @@ mod components;
 mod systems;
 mod pauser;
 
+use components::*;
 use pauser::{CustomGameData, CustomGameDataBuilder};
 use sprite::SpriteSheetDefinition;
 
 #[derive(Debug)]
 struct GameplayState {
-    player: Vec<Entity>
+    player: Option<Entity>
 }
+
 #[derive(Debug)]
 struct PausedState;
 
@@ -44,13 +46,13 @@ pub struct GameStateText {
 impl GameplayState {
     fn new() -> GameplayState {
         GameplayState {
-            player: Vec::new()
+            player: None
         }
     }
 
     fn toggle_player_sprite_animation(&mut self, world: &mut World) {
         let mut animation_contorl_set_storage = world.write_storage();
-        let player_entity = self.player[0];
+        let player_entity = self.player.unwrap();
         let animation_set = 
             get_animation_set::<u32, SpriteRender>(&mut animation_contorl_set_storage, player_entity)
                 .unwrap();
@@ -109,7 +111,7 @@ impl GameplayState {
 
         animation_set.insert(animation_id, animation_contorl);
 
-        self.player.push(player_entity);
+        self.player = Some(player_entity);
     }
 }
 
@@ -200,6 +202,13 @@ impl<'a, 'b> State<CustomGameData<'a, 'b>> for GameplayState {
             // Switch to the `PausedState`
             println!("Switching to Pausedstate");
             return Trans::Push(Box::new(PausedState));
+        }
+
+        if is_key_down(&event, VirtualKeyCode::I) {
+            let mut player_storage = world.write_storage::<PlayerComponent>();
+            let player = player_storage.get_mut(self.player.unwrap()).expect("Failed to get components for player entity");
+            player.input_state = player.input_state.next();
+            println!("Player input state set to: {:?}", player.input_state);
         }
 
         // Closes the game when Escape is pressed
@@ -325,7 +334,7 @@ fn main() -> Result<(), amethyst::Error> {
         .with_base_bundle(InputBundle::<String, String>::new().with_bindings_from_file(&key_bindings_path)?)?
         .with_base_bundle(UiBundle::<String, String>::new())?
         .with_running_bundle(InputBundle::<String, String>::new().with_bindings_from_file(&key_bindings_path)?)?
-        .with_running(systems::MovePlayerSystem, "move_player_system", &["input_system"]);
+        .with_running(systems::MovePlayerSystem::default(), "move_player_system", &["input_system"]);
 
     let mut game = Application::build("./", GameplayState::new())?
         .build(game_data)?;
